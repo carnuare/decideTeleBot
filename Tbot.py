@@ -39,10 +39,13 @@ def detalle(message):
       response = requests.get(url)
       texts = message.text.split(' ')
       vid = texts[1]
-      reply = 'Nombre de la votacion: ' + response.json(vid)['name'] + '\n'
-      reply += 'Descripcion: ' + response.json(vid)['description'] + '\n'
-      reply += 'Fecha de inicio: ' + response.json(vid)['fecha_inicio'] + '\n'
-      reply += 'Fecha de finalizacion: ' + response.json(vid)['fecha_fin'] + '\n'
+      reply = 'Nombre de la votacion: ' + response.json()[vid]['name'] + '\n'
+      if(response.json()[vid]['description'] is not None):
+        reply += 'Descripcion: ' + response.json()[vid]['description'] + '\n'
+      if(response.json()[vid]['fecha_inicio'] is not None):
+        reply += 'Fecha de inicio: ' + response.json()[vid]['fecha_inicio'] + '\n'
+      if(response.json()[vid]['fecha_fin'] is not None):
+        reply += 'Fecha de finalizacion: ' + response.json()[vid]['fecha_fin'] + '\n'
       bot.reply_to(message, reply)
    except Exception:
       bot.reply_to(message, 'Error llamando a la API')
