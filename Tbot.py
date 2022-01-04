@@ -19,19 +19,33 @@ def comienzo(message):
 def send_welcome(message):
     bot.reply_to(message, "Buenas tardes")
 
-@bot.message_handler(commands=["votaciones"])
+@bot.message_handler(commands=["votaciones"]) #devuelve listado de todas las votaciones
 def resolver(message):
     try:
-        uid = message.from_user.id
         url= 'https://decide-full-alcazaba-develop.herokuapp.com/visualizer/all'
         response = requests.get(url)
         print(response.json())
         reply = 'Votaciones: \n'
         for clave in response.json():
-          reply = reply + response.json()[clave]['name']
+          reply += response.json()[clave]['name'] + ' - ' + clave
         bot.reply_to(message, reply)
     except Exception:
         bot.reply_to(message, 'Error llamando a la API')
+
+@bot.message_handler(func=lambda msg: msg.text is not None and '/votacion' in msg.text) #devuelve detalle de votacion por su id
+def detalle(message):
+   try:
+      url= 'https://decide-full-alcazaba-develop.herokuapp.com/visualizer/all'
+      response = requests.get(url)
+      texts = message.text.split(' ')
+      vid = texts[1]
+      reply = 'Nombre de la votacion: ' + response.json(vid)['name'] + '\n'
+      reply += 'Descripcion: ' + response.json(vid)['description'] + '\n'
+      reply += 'Fecha de inicio: ' + response.json(vid)['fecha_inicio'] + '\n'
+      reply += 'Fecha de finalizacion: ' + response.json(vid)['fecha_fin'] + '\n'
+      bot.reply_to(message, reply)
+   except Exception:
+      bot.reply_to(message, 'Error llamando a la API')
  
 # SERVER SIDE 
 @server.route('/' + TOKEN, methods=['POST'])
@@ -41,7 +55,7 @@ def getMessage():
 @server.route("/")
 def webhook():
    bot.remove_webhook()
-   bot.set_webhook(url='https://telebot-decide-alcazaba.herokuapp.com/' + ' 5094239712:AAEWOtGe55YZ1GFjwNpmyrSF_kWPtO1Y2yk')
+   bot.set_webhook(url='https://telebot-decide-alcazaba.herokuapp.com/' + TOKEN)
    return "!", 200
 if __name__ == "__main__":
    server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
