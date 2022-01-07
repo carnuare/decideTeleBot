@@ -12,7 +12,8 @@ import requests
 from flask import Flask, request
 TOKEN = '5094239712:AAEWOtGe55YZ1GFjwNpmyrSF_kWPtO1Y2yk'#os.getenv('5094239712:AAEWOtGe55YZ1GFjwNpmyrSF_kWPtO1Y2yk') #Ponemos nuestro Token generado con el @BotFather
 bot = telebot.TeleBot(TOKEN)  #Creamos nuestra instancia "bot" a partir de ese TOKEN
-server = Flask(__name__) 
+server = Flask(__name__)
+url = 'http://localhost:8081/'
 tokenSesion = {}
 
 @bot.message_handler(commands=['start'])
@@ -26,7 +27,7 @@ def send_welcome(message):
 @bot.message_handler(commands=["votaciones"]) #devuelve listado de todas las votaciones
 def resolver(message):
     try:
-        url= 'https://decide-full-alcazaba-develop.herokuapp.com/visualizer/all'
+        url = 'http://localhost:8081/visualizer/all'
         response = requests.get(url)
         print(response.json())
         reply = 'Votaciones: \n'
@@ -39,7 +40,7 @@ def resolver(message):
 @bot.message_handler(func=lambda msg: msg.text is not None and '/votacion' in msg.text) #devuelve detalle de votacion por su id
 def detalle(message):
    try:
-      url= 'https://decide-full-alcazaba-develop.herokuapp.com/visualizer/all'
+      url = 'http://localhost:8081/visualizer/all'
       response = requests.get(url)
       texts = message.text.split(' ')
       vid = texts[1]
@@ -62,7 +63,7 @@ def login(message):
       try:
          user = texts[1].strip() #strip para quitarle los espacios iniciales y finales
          password = texts[2].strip()
-         url = "https://decide-full-alcazaba-develop.herokuapp.com/authentication/login/"
+         url = 'http://localhost:8081/authentication/login-bot/'
          payload={"username":user,"password":password}
          files=[]
          headers = {}
@@ -73,7 +74,7 @@ def login(message):
          elif 'token' in listaclaves:
             diccionario = {respuesta.json()['token']: True}
             tokenSesion.update(diccionario)
-            bot.reply_to(message,'Ha iniciado sesión correctamente')
+            bot.reply_to(message,'Ha iniciado sesión correctamente. Su id para votar es:'+str(respuesta.json()['user_id'])+'. !Por favor, no la comparta con nadie¡')
          else:
             raise Exception()
       except Exception:
