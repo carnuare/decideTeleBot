@@ -1,5 +1,6 @@
 '''
 bot.delete_webhook()
+
 #https://api.telegram.org/bot5094239712:AAEWOtGe55YZ1GFjwNpmyrSF_kWPtO1Y2yk/setWebhook?url=
 '''
 import os
@@ -12,44 +13,88 @@ from flask import Flask, request
 TOKEN = '5094239712:AAEWOtGe55YZ1GFjwNpmyrSF_kWPtO1Y2yk'#os.getenv('5094239712:AAEWOtGe55YZ1GFjwNpmyrSF_kWPtO1Y2yk') #Ponemos nuestro Token generado con el @BotFather
 bot = telebot.TeleBot(TOKEN)  #Creamos nuestra instancia "bot" a partir de ese TOKEN
 server = Flask(__name__) 
-
+tokenSesion = {}
 
 @bot.message_handler(commands=['start'])
 def comienzo(message):
-   bot.reply_to(message, "¡Hola! Probando")
+    bot.reply_to(message, "¡Hola! Probando")
 
-@bot.message_handler(commands=['help',''])
+@bot.message_handler(commands=['help'])
 def send_welcome(message):
-   bot.send_message(message.chat.id, """Usa \"/login <usuario> <contraseña>\" para iniciar sesión.
-Usa \"/vote <id_de_la_votacion>\" para poder votar.""")
+    bot.reply_to(message, "Buenas tardes")
+
+@bot.message_handler(commands=["votaciones"]) #devuelve listado de todas las votaciones
+def resolver(message):
+    try:
+        url= 'https://decide-full-alcazaba-develop.herokuapp.com/visualizer/all'
+        response = requests.get(url)
+        print(response.json())
+        reply = 'Votaciones: \n'
+        for clave in response.json():
+          reply += response.json()[clave]['name'] + ' - ' + clave
+        bot.reply_to(message, reply)
+    except Exception:
+        bot.reply_to(message, 'Error llamando a la API')
+
+@bot.message_handler(func=lambda msg: msg.text is not None and '/votacion' in msg.text) #devuelve detalle de votacion por su id
+def detalle(message):
+   try:
+      url= 'https://decide-full-alcazaba-develop.herokuapp.com/visualizer/all'
+      response = requests.get(url)
+      texts = message.text.split(' ')
+      vid = texts[1]
+      reply = 'Nombre de la votacion: ' + response.json()[vid]['name'] + '\n'
+      if(response.json()[vid]['description'] is not None):
+        reply += 'Descripcion: ' + response.json()[vid]['description'] + '\n'
+      if(response.json()[vid]['fecha_inicio'] is not None):
+        reply += 'Fecha de inicio: ' + response.json()[vid]['fecha_inicio'] + '\n'
+      if(response.json()[vid]['fecha_fin'] is not None):
+        reply += 'Fecha de finalizacion: ' + response.json()[vid]['fecha_fin'] + '\n'
+      bot.reply_to(message, reply)
+   except Exception:
+      bot.reply_to(message, 'Error llamando a la API')
 
 @bot.message_handler(func=lambda msg: msg.text is not None and '/login' in msg.text)
 def login(message):
    #bot.send_message(message.chat.id, "")
    texts = message.text.split(' ')
    if(len(texts)==3):
-      user = texts[1].strip() #strip para quitarle los espacios iniciales y finales
-      password = texts[2].strip()
-      id_votante_api = 1 #simula el id del votante logeado 
-      id_votante = id_votante_api #se guarda en una variable para saber que está logeado
-      print(id_votante)
-      #bot.send_message(message.chat.id, "Id del votante"+str(id_votante)+"")
-      #bot.send_message(message.chat.id,"¿Es usted\""+ user +"\"con contraseña \""+password+"\"?")
+      try:
+         user = texts[1].strip() #strip para quitarle los espacios iniciales y finales
+         password = texts[2].strip()
+         url = "https://decide-full-alcazaba-develop.herokuapp.com/authentication/login/"
+         payload={"username":user,"password":password}
+         files=[]
+         headers = {}
+         respuesta = requests.request("POST", url, headers=headers, data=payload, files=files)
+         listaclaves = list(respuesta.json().keys())
+         if 'non_field_errors' in listaclaves:
+            bot.reply_to(message, 'No puede iniciar sesión con las credenciales proporcionadas. Por favor vuelva a intentarlo.')
+         elif 'token' in listaclaves:
+            diccionario = {respuesta.json()['token']: True}
+            tokenSesion.update(diccionario)
+            bot.reply_to(message,'Ha iniciado sesión correctamente')
+         else:
+            raise Exception()
+      except Exception:
+         bot.reply_to(message, 'Error llamando a la API')
+
    else:
       bot.reply_to(message, 'Por favor, use correctamente el comando /login      (ver en /help)')
       print("Error en /login, al introducir el comando: "+str(message.text))
 
 @bot.message_handler(func=lambda msg: msg.text is not None and '/logout' in msg.text)
 def logout(message):
+   print('Logout del token: '+str(tokenSesion))
    try:
       if(message.text!='/logout'):
          raise Exception()
       else:
-         if(id_votante==-1):
+         if(tokenSesion['9a12ac4f0bd11ebe364b8bdc0c9e5319204aa982'] == False):
             bot.send_message(message.chat.id, "No ha iniciado sesion, introduzca el comando: \"/login <usuario> <contraseña>\" para iniciar sesion")
          else:
-            id_votante==-1
-            if(id_votante==-1):
+            tokenSesion==None
+            if(tokenSesion==None):
                bot.send_message(message.chat.id, "Sesión cerrada!!")
             else:
                raise Exception()
@@ -77,5 +122,4 @@ def webhook():
 if __name__ == "__main__":
    server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
 '''
-
 bot.polling()
