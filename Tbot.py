@@ -11,45 +11,121 @@ bot = telebot.TeleBot(TOKEN)  #Creamos nuestra instancia "bot" a partir de ese T
 server = Flask(__name__) 
 #ola caracola
 
-@bot.message_handler(commands=['start'])
-def comienzo(message):
-    bot.reply_to(message, "¡Hola! Probando")
-
-@bot.message_handler(commands=['help'])
-def send_welcome(message):
-    bot.reply_to(message, "Buenas tardes")
-
-@bot.message_handler(commands=["votaciones"]) #devuelve listado de todas las votaciones
-def resolver(message):
-    try:
-        url= 'https://decide-full-alcazaba-develop.herokuapp.com/visualizer/all'
-        response = requests.get(url)
+tokenSesion = {} 
+meses = {'01':'Enero', '02':'Febrero', '03':'Marzo', '04':'Abril','05':'Mayo','06':'Junio','07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'}
+ 
+@bot.message_handler(commands=['start']) 
+def comienzo(message): 
+    bot.send_message(message.chat.id, "Bienvenido al sistema de votación Decide-Alcazaba Bot de Telegram Exclusive Edition") 
+ 
+@bot.message_handler(commands=['help']) 
+def send_welcome(message): 
+    with open('mensaje_help.txt', 'r') as file:
+        data = file.read().replace('\n', '')
+    bot.send_message(message.chat.id,"Puede utilizar los siguientes comandos: ") 
+    bot.send_message(message.chat.id, data) 
+ 
+@bot.message_handler(commands=["votaciones"]) #devuelve listado de todas las votaciones 
+def resolver(message): 
+    try: 
+        url = 'https://decide-full-alcazaba-develop.herokuapp.com/visualizer/all' 
+        response = requests.get(url) 
         print(response.json())
-        reply = 'Votaciones: \n'
-        for clave in response.json():
-          reply += response.json()[clave]['name'] + ' - ' + clave + '\n'
-        bot.reply_to(message, reply)
-    except Exception:
-        bot.reply_to(message, 'Error llamando a la API')
+        reply = 'Votaciones: \n' 
+        n = 0
+        for clave in response.json(): 
+            reply += response.json()[clave]['name'] + ' - ' + clave +'\n'
+            n += 1
+        if(n==0):
+            bot.reply_to(message, "No hay votaciones actualmente.")
+        else:
+            bot.reply_to(message, reply) 
+    except Exception: 
+        bot.reply_to(message, 'Error llamando a la API') 
 
-@bot.message_handler(func=lambda msg: msg.text is not None and '/votacion' in msg.text) #devuelve detalle de votacion por su id
-def detalle(message):
-   try:
-      url= 'https://decide-full-alcazaba-develop.herokuapp.com/visualizer/all'
-      response = requests.get(url)
-      texts = message.text.split(' ')
-      vid = texts[1]
-      reply = 'Nombre de la votacion: ' + response.json()[vid]['name'] + '\n'
-      if(response.json()[vid]['description'] is not None):
-        reply += 'Descripcion: ' + response.json()[vid]['description'] + '\n'
-      if(response.json()[vid]['fecha_inicio'] is not None):
-        reply += 'Fecha de inicio: ' + response.json()[vid]['fecha_inicio'] + '\n'
-      if(response.json()[vid]['fecha_fin'] is not None):
-        reply += 'Fecha de finalizacion: ' + response.json()[vid]['fecha_fin'] + '\n'
-      bot.reply_to(message, reply)
-   except Exception:
-      bot.reply_to(message, 'Error llamando a la API')
+@bot.message_handler(commands=["censos"]) #devuelve listado de todos los census
+def resolver(message): 
+    try: 
+        url = 'https://decide-full-alcazaba-develop.herokuapp.com/visualizer/allCensus' 
+        response = requests.get(url) 
+        print(response.json())
+        reply = 'Censos: \n' 
+        n = 0
+        for clave in response.json(): 
+            reply += 'Nombre: ' + response.json()[clave]['name'] + '. Numero votantes: ' + response.json()[clave]['num_voters'] + '\n'
+            n += 1
+        if(n==0):
+            bot.reply_to(message, "No hay censos actualmente.")
+        else:
+            bot.reply_to(message, reply) 
+    except Exception: 
+        bot.reply_to(message, 'Error llamando a la API') 
 
+@bot.message_handler(commands=["usuarios"]) #devuelve listado de todos los usuarios
+def resolver(message): 
+    try: 
+        url = 'https://decide-full-alcazaba-develop.herokuapp.com/visualizer/allUsers' 
+        response = requests.get(url) 
+        print(response.json())
+        reply = 'Usuarios: \n' 
+        n = 0
+        for clave in response.json(): 
+            reply += 'Nombre de usuario: ' + response.json()[clave]['username'] + '. Email: ' + response.json()[clave]['email'] + '\n'
+            n += 1
+        if(n==0):
+            bot.reply_to(message, "No hay usuarios actualmente.")
+        else:
+            bot.reply_to(message, reply) 
+    except Exception: 
+        bot.reply_to(message, 'Error llamando a la API') 
+
+def parse_fecha(fecha):
+    partes = fecha.split('-')
+    fecha_parseada = partes[2][:2] + ' de ' + meses[partes[1]] + ' del ' + partes[0]
+    return fecha_parseada
+
+def ganador(postproc):
+    resultados = {}
+    for opcion in postproc:
+        resultados[opcion["option"]] = opcion["votes"]
+    opcion_ganadora = max(resultados, key=resultados.get)
+    return  'La opcion ganadora ha sido: ' + opcion_ganadora + ' con '+ str(resultados[opcion_ganadora]) + ' votos.' + '\n'
+
+@bot.message_handler(func=lambda msg: msg.text is not None and '/votacion' in msg.text) #devuelve detalle de votacion por su id 
+def detalle(message): 
+   try: 
+        texts = message.text.split(' ') 
+        vid = texts[1] 
+        url = 'https://decide-full-alcazaba-develop.herokuapp.com/visualizer/details/' + vid 
+        response = requests.get(url) 
+        n = 0
+        for atributos in response.json():
+            n += 1
+        if(n != 0):
+            reply = 'Nombre de la votacion: ' + response.json()['name'] + '\n' 
+            if(response.json()['description'] is not None): 
+                reply += 'Descripcion: ' + response.json()['description'] + '\n' 
+            if(response.json()['fecha_inicio'] is not None): 
+                reply += 'Fecha de inicio: ' + parse_fecha(str(response.json()['fecha_inicio'])) + '\n' 
+            if(response.json()['fecha_fin'] is not None): 
+                reply += 'Fecha de finalizacion: ' + parse_fecha(str(response.json()['fecha_fin'])) + '\n' 
+            if(response.json()['question_desc'] is not None):
+                reply += 'Pregunta: ' + response.json()['question_desc'] + '\n'
+            reply += '\n'
+            for opcion in response.json()['question_options']:
+                reply += 'Opcion ' + str(opcion["number"]) + ': ' + opcion["option"] + '\n'
+            reply += '\n'
+            if(response.json()['postproc'] is not None):
+                reply += ganador(response.json()['postproc'])
+            else:
+                reply += 'Aún no existen los resultados de la votación.' + '\n'
+            bot.reply_to(message, reply)
+        else: 
+            bot.reply_to(message, "Esta votación no existe. Por favor indique un id válido (vea /votaciones).")
+   except Exception: 
+        bot.reply_to(message, 'Error llamando a la API') 
+
+ 
 @bot.message_handler(func=lambda msg: msg.text is not None and '/login' in msg.text) 
  
 #/login <nombre_usuario> <contraseña> 
@@ -205,7 +281,7 @@ def votacion(message):
          else: 
             bot.send_message(message.chat.id, "No ha iniciado sesion, introduzca el comando: \"/login <usuario> <contraseña>\" para iniciar sesion") 
       else: 
-         bot.reply_to(message, 'Por favor, use correctamente el comando /vote      (ver /help)') 
+         bot.reply_to(message, 'Por favor, use correctamente el comando /vote  (ver /help)') 
          print("Error en /vote, al introducir el comando: "+str(message.text)) 
    except Exception: 
       bot.reply_to(message, 'Error llamando a la API') 
@@ -215,8 +291,7 @@ def votacion(message):
 def no_command_message(message): 
    bot.send_message(message.chat.id, 'Por favor introduzca algun comando del listado siguiente:') 
    send_welcome(message) 
- 
- 
+   
 # SERVER SIDE 
 @server.route('/' + TOKEN, methods=['POST'])
 def getMessage():
